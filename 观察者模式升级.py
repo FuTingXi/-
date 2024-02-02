@@ -1,0 +1,109 @@
+'''
+Python实现观察者代码思想：
+1.首先，定义了一个抽象观察者类 Observer 和一个抽象发布者类 Publisher。这两个类为观察者模式的基础提供了抽象接口。
+
+2.其次，定义了具体的文件发布者类 FilePublisher，它继承自发布者类。在文件发布者类中，通过使用 os 模块获取文件的
+最后修改时间，并且通过 time 模块添加延迟，以避免频繁检查文件是否发生变化。文件发布者还包含一个方法 check_for_changes，
+用于检查文件是否发生变化，并在文件发生变化时通知观察者。
+
+3.再次，定义了具体的文件观察者类 FileUser，它继承自观察者类。在文件观察者类中，实现了 update 方法，用于处理文件
+变化通知。每当文件发生变化时，观察者会收到通知，并打印出文件变化前后的内容。
+
+4.最后，在主程序入口高层APi中，创建了文件发布者和文件观察者的实例，并将观察者附加到发布者。然后，通过一个循环持续检查文件
+变化，如果文件发生变化，发布者会通知观察者。
+'''
+
+# os模块被用于获取文件的最后修改时间和判断文件是否存在等操作。
+import os
+
+# time模块提供了处理时间的函数，包括获取当前时间、时间戳转换等
+# time模块被用于添加延迟，以避免频繁检查文件是否发生变化。
+import time
+
+from abc import ABC, abstractmethod
+
+# 定义抽象观察者类
+class Observer(ABC):
+    @abstractmethod
+    def update(self, new_content):
+        pass
+
+
+# 定义抽象发布者类
+class Publisher(ABC):
+    def __init__(self):
+        self.observers = []  # 初始化观察者列表
+
+    # 将观察者附加到发布者
+    def attach(self, observer):
+        self.observers.append(observer)
+
+    # 将观察者从发布者中分离
+    def detach(self, observer):
+        self.observers.remove(observer)
+
+    # 通知所有观察者
+    def notify(self, new_content):
+        for obs in self.observers:
+            obs.update(new_content)
+
+    @abstractmethod
+    def check_for_changes(self):
+        pass
+
+
+# 定义文件发布者类，继承自发布者类
+class FilePublisher(Publisher):
+    def __init__(self, file_path):
+        super().__init__()
+        self.file_path = file_path
+        self.last_modified_time = os.path.getmtime(file_path)  # 获取文件最后修改时间
+        self.last_content = self._read_file_content()  # 读取文件内容
+        print("文件原始内容:")
+        print(self.last_content)  # 打印文件原始内容
+
+    # 读取文件内容
+    def _read_file_content(self):
+        with open(self.file_path, 'r', encoding='utf-8') as file:  # 使用utf-8编码器读取文件内容
+            return file.read()
+
+    # 检查文件是否发生变化
+    def check_for_changes(self):
+        current_modified_time = os.path.getmtime(self.file_path)  # 获取当前文件修改时间
+        if current_modified_time != self.last_modified_time:  # 如果当前修改时间不等于上次记录的修改时间
+            time.sleep(1)  # 添加延迟以避免频繁检查
+            new_modified_time = os.path.getmtime(self.file_path)  # 再次获取当前文件修改时间
+
+            if current_modified_time == new_modified_time:  # 再次确认文件是否发生变化
+                self.last_modified_time = current_modified_time  # 更新最后修改时间
+                new_content = self._read_file_content()  # 读取新的文件内容
+                self.notify(new_content)  # 通知观察者
+
+
+# 定义文件观察者类，继承自观察者类
+class FileUser(Observer):
+    def __init__(self):
+        # 初始化消息变量所以文件原始内容被初始化即第一次通知观察者文件的变化前内容是空的
+        self.message = None
+
+    # 更新方法，用于处理文件变化通知
+    def update(self, new_content):
+        print("文件已经发生变化:")
+        print("文件变化前:")
+        print(self.message if self.message else "文件是空的")  # 打印变化前的内容
+        print("文件变化后:")
+        print(new_content)  # 打印变化后的内容
+        self.message = new_content  # 更新消息变量
+
+
+# 主程序入口高层API
+if __name__ == '__main__':
+    file_path = "docu.txt"  # 文件路径
+    file_publisher = FilePublisher(file_path)  # 创建文件发布者
+
+    file_user = FileUser()  # 创建文件观察者
+    file_publisher.attach(file_user)  # 将观察者附加到发布者
+
+    while True:
+        # 最后有一个while循环，持续检查文件变化意思也就是代码不结束运行
+        file_publisher.check_for_changes()
